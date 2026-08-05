@@ -1,14 +1,15 @@
 // src/server.js - Entry Point
+import 'dotenv/config'; // 👈 Must be imported FIRST so environment variables load before app.js runs!
 import app from './app.js';
-import 'dotenv/config';
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 const start = async () => {
   try {
-    await app.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`✅ Server running on port ${PORT} in ${NODE_ENV} mode`);
+    const address = await app.listen({ port: PORT, host: HOST });
+    console.log(`✅ Server running at ${address} in ${NODE_ENV} mode`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
@@ -18,15 +19,17 @@ const start = async () => {
 start();
 
 // Graceful Shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  await app.close();
-  process.exit(0);
-});
+const shutdown = async (signal) => {
+  console.log(`⚠️ ${signal} signal received: closing HTTP server`);
+  try {
+    await app.close();
+    console.log('🔒 HTTP server closed cleanly');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Error during graceful shutdown:', err);
+    process.exit(1);
+  }
+};
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT signal received: closing HTTP server');
-  await app.close();
-  process.exit(0);
-});
-
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
