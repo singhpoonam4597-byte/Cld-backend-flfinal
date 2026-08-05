@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "postinstall": "prisma generate",
     "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
     "studio": "prisma studio",
@@ -29,13 +30,13 @@
     "@fastify/jwt": "^7.1.1",
     "@fastify/multipart": "^8.0.0",
     "@prisma/client": "^5.7.1",
+    "prisma": "^5.7.1",
     "cloudinary": "^1.40.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.3.1",
     "joi": "^17.11.0"
   },
   "devDependencies": {
-    "prisma": "^5.7.1",
     "nodemon": "^3.0.2",
     "eslint": "^8.55.0"
   },
