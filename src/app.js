@@ -27,7 +27,7 @@ const app = Fastify({
 
 // CORS
 app.register(cors, {
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: true, // 👈 Updated to dynamically allow your Vercel frontend
   credentials: true,
 });
 
