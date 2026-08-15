@@ -1,121 +1,160 @@
-generator client {
-  provider = "prisma-client-js"
+// ADD THESE TO YOUR prisma/schema.prisma FILE
+// Keep your existing schema and add these new models below
+
+// ============================================
+// GROUP CHATS
+// ============================================
+model Group {
+  id            String     @id @default(cuid())
+  name          String
+  description   String?
+  image         String?
+  createdBy     String     @db.Uuid
+  creator       User       @relation("GroupCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  members       GroupMember[]
+  messages      Message[]  @relation("GroupMessages")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([createdBy])
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+model GroupMember {
+  id            String     @id @default(cuid())
+  groupId       String     @db.Text
+  group         Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId        String     @db.Uuid
+  user          User       @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  role          String     @default("member") // admin, moderator, member
+  joinedAt      DateTime   @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([groupId])
 }
 
-model User {
-  id               String         @id @default(uuid())
-  email            String         @unique
-  username         String         @unique
-  password         String
-  displayName      String?        // Updated from 'name' to 'displayName'
-  bio              String?        @default("")
-  avatar           String?        @default("")
-  isPrivate        Boolean        @default(false)
-  isVerified       Boolean        @default(false)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+// ============================================
+// COMMUNITIES
+// ============================================
+model Community {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  description   String?
+  image         String?
+  createdBy     String     @db.Uuid
+  creator       User       @relation("CommunityCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  members       CommunityMember[]
+  roles         CommunityRole[]
+  channels      Channel[]
+  posts         Post[]     @relation("CommunityPosts")
+  inviteCode    String?    @unique @default(cuid())
+  isPublic      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  // Relationships
-  posts            Post[]
-  comments         Comment[]
-  likes            Like[]
-  followers        Follow[]       @relation("UserFollowers")
-  following        Follow[]       @relation("UserFollowing")
-  sentMessages     Message[]      @relation("SentMessages")
-  receivedMessages Message[]      @relation("ReceivedMessages")
-  notifications    Notification[]
-  stories          Story[]
+  @@index([createdBy])
 }
 
-model Post {
-  id        String    @id @default(uuid())
-  caption   String?
-  imageUrl  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+model CommunityMember {
+  id            String     @id @default(cuid())
+  communityId   String     @db.Text
+  community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId        String     @db.Uuid
+  user          User       @relation("CommunityMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String?    @db.Text
+  joinedAt      DateTime   @default(now())
 
-  // Relationships
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments  Comment[]
-  likes     Like[]
+  @@unique([communityId, userId])
+  @@index([userId])
+  @@index([communityId])
 }
 
-model Comment {
-  id        String   @id @default(uuid())
-  text      String
-  createdAt DateTime @default(now())
+model CommunityRole {
+  id            String     @id @default(cuid())
+  communityId   String     @db.Text
+  community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  name          String     // admin, moderator, member, viewer
+  permissions   String[]   @default([])
+  createdAt     DateTime   @default(now())
 
-  // Relationships
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  @@unique([communityId, name])
+  @@index([communityId])
 }
 
-model Like {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+model Channel {
+  id            String     @id @default(cuid())
+  name          String
+  description   String?
+  communityId   String     @db.Text
+  community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  isPrivate     Boolean    @default(false)
+  createdAt     DateTime   @default(now())
 
-  // Relationships
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
+  @@index([communityId])
 }
 
-model Follow {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-
-  // Relationships
-  followerId  String
-  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
-  followingId String
-  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@unique([followerId, followingId])
-}
-
+// ============================================
+// MESSAGE ENHANCEMENTS
+// ============================================
 model Message {
-  id         String   @id @default(uuid())
-  content    String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id            String     @id @default(cuid())
+  content       String
+  senderId      String     @db.Uuid
+  sender        User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  // For 1:1 conversations
+  conversationId String?    @db.Text
+  
+  // For group chats
+  groupId       String?    @db.Text
+  group         Group?     @relation("GroupMessages", fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // For replies/threads
+  replyToId     String?    @db.Text
+  replyTo       Message?   @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: Cascade)
+  replies       Message[]  @relation("MessageReplies")
+  
+  // Message features
+  reactions     Reaction[]
+  isPinned      Boolean    @default(false)
+  pinnedBy      String?    @db.Uuid
+  pinnedAt      DateTime?
+  
+  // Editing
+  isEdited      Boolean    @default(false)
+  editedAt      DateTime?
+  
+  // Metadata
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  // Relationships
-  senderId   String
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiverId String
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@index([senderId])
+  @@index([conversationId])
+  @@index([groupId])
+  @@index([replyToId])
 }
 
-model Notification {
-  id        String   @id @default(uuid())
-  type      String   // 'LIKE', 'COMMENT', 'FOLLOW'
-  message   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+model Reaction {
+  id            String     @id @default(cuid())
+  messageId     String     @db.Text
+  message       Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId        String     @db.Uuid
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji         String     // 👍, ❤️, etc
+  createdAt     DateTime   @default(now())
 
-  // Relationships
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }
 
-model Story {
-  id        String   @id @default(uuid())
-  mediaUrl  String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+// ============================================
+// Update existing User model to add:
+// ============================================
+// In your User model, add these fields if not already present:
 
-  // Relationships
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// groupMemberships    GroupMember[]       @relation("GroupMemberships")
+// createdGroups       Group[]             @relation("GroupCreator")
+// communityMemberships CommunityMember[]  @relation("CommunityMemberships")
+// createdCommunities  Community[]         @relation("CommunityCreator")
+// reactions           Reaction[]
