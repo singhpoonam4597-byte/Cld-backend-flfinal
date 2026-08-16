@@ -18,6 +18,8 @@ model User {
   password                String
   avatar                  String?
   bio                     String?
+  isPrivate               Boolean    @default(false)
+  isVerified              Boolean    @default(false)
   online                  Boolean    @default(false)
   lastSeen                DateTime?
   createdAt               DateTime   @default(now())
