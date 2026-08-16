@@ -1,6 +1,3 @@
-// This is the COMPLETE schema.prisma
-// Replace your entire prisma/schema.prisma with this
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -28,21 +25,21 @@ model User {
 
   // Messages & Conversations
   messages                Message[]
-  conversations           Conversation[] @relation("User1Conversations")
-  conversations2          Conversation[] @relation("User2Conversations")
+  conversations1          Conversation[] @relation("User1")
+  conversations2          Conversation[] @relation("User2")
 
   // Groups
-  groupMemberships        GroupMember[]
+  groupMemberships        GroupMember[] @relation("UserGroups")
   createdGroups           Group[]    @relation("GroupCreator")
 
   // Communities
-  communityMemberships    CommunityMember[]
+  communityMemberships    CommunityMember[] @relation("UserCommunities")
   createdCommunities      Community[] @relation("CommunityCreator")
 
   // Posts & Social
   posts                   Post[]
-  followers               Follow[]   @relation("FollowingUser")
-  following               Follow[]   @relation("FollowerUser")
+  followers               Follow[]   @relation("Following")
+  following               Follow[]   @relation("Follower")
 
   // Reactions & Notifications
   reactions               Reaction[]
@@ -58,9 +55,9 @@ model User {
 model Conversation {
   id            String     @id @default(cuid())
   user1Id       String     @db.Uuid
-  user1         User       @relation("User1Conversations", fields: [user1Id], references: [id], onDelete: Cascade)
+  user1         User       @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2Id       String     @db.Uuid
-  user2         User       @relation("User2Conversations", fields: [user2Id], references: [id], onDelete: Cascade)
+  user2         User       @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
   messages      Message[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -80,7 +77,7 @@ model Group {
   image         String?
   createdBy     String     @db.Uuid
   creator       User       @relation("GroupCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  members       GroupMember[]
+  members       GroupMember[] @relation("GroupMembers")
   messages      Message[]  @relation("GroupMessages")
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -90,11 +87,11 @@ model Group {
 
 model GroupMember {
   id            String     @id @default(cuid())
-  groupId       String     @db.Text
-  group         Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId       String
+  group         Group      @relation("GroupMembers", fields: [groupId], references: [id], onDelete: Cascade)
   userId        String     @db.Uuid
-  user          User       @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  role          String     @default("member") // admin, moderator, member
+  user          User       @relation("UserGroups", fields: [userId], references: [id], onDelete: Cascade)
+  role          String     @default("member")
   joinedAt      DateTime   @default(now())
 
   @@unique([groupId, userId])
@@ -112,7 +109,7 @@ model Community {
   image         String?
   createdBy     String     @db.Uuid
   creator       User       @relation("CommunityCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  members       CommunityMember[]
+  members       CommunityMember[] @relation("CommunityMembers")
   roles         CommunityRole[]
   channels      Channel[]
   posts         Post[]     @relation("CommunityPosts")
@@ -126,11 +123,11 @@ model Community {
 
 model CommunityMember {
   id            String     @id @default(cuid())
-  communityId   String     @db.Text
-  community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId   String
+  community     Community  @relation("CommunityMembers", fields: [communityId], references: [id], onDelete: Cascade)
   userId        String     @db.Uuid
-  user          User       @relation("CommunityMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  roleId        String?    @db.Text
+  user          User       @relation("UserCommunities", fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String?
   joinedAt      DateTime   @default(now())
 
   @@unique([communityId, userId])
@@ -140,9 +137,9 @@ model CommunityMember {
 
 model CommunityRole {
   id            String     @id @default(cuid())
-  communityId   String     @db.Text
+  communityId   String
   community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  name          String     // admin, moderator, member, viewer
+  name          String
   permissions   String[]   @default([])
   createdAt     DateTime   @default(now())
 
@@ -154,7 +151,7 @@ model Channel {
   id            String     @id @default(cuid())
   name          String
   description   String?
-  communityId   String     @db.Text
+  communityId   String
   community     Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
   isPrivate     Boolean    @default(false)
   createdAt     DateTime   @default(now())
@@ -172,15 +169,15 @@ model Message {
   sender        User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
   
   // For 1:1 conversations
-  conversationId String?    @db.Text
+  conversationId String?
   conversation  Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
   // For group chats
-  groupId       String?    @db.Text
+  groupId       String?
   group         Group?     @relation("GroupMessages", fields: [groupId], references: [id], onDelete: Cascade)
   
   // For replies/threads
-  replyToId     String?    @db.Text
+  replyToId     String?
   replyTo       Message?   @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: Cascade)
   replies       Message[]  @relation("MessageReplies")
   
@@ -206,11 +203,11 @@ model Message {
 
 model Reaction {
   id            String     @id @default(cuid())
-  messageId     String     @db.Text
+  messageId     String
   message       Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId        String     @db.Uuid
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emoji         String     // 👍, ❤️, etc
+  emoji         String
   createdAt     DateTime   @default(now())
 
   @@unique([messageId, userId, emoji])
@@ -226,7 +223,7 @@ model Post {
   content       String
   authorId      String     @db.Uuid
   author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  communityId   String?    @db.Text
+  communityId   String?
   community     Community? @relation("CommunityPosts", fields: [communityId], references: [id], onDelete: SetNull)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -241,9 +238,9 @@ model Post {
 model Follow {
   id            String     @id @default(cuid())
   followerId    String     @db.Uuid
-  follower      User       @relation("FollowerUser", fields: [followerId], references: [id], onDelete: Cascade)
+  follower      User       @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
   followingId   String     @db.Uuid
-  following     User       @relation("FollowingUser", fields: [followingId], references: [id], onDelete: Cascade)
+  following     User       @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
   createdAt     DateTime   @default(now())
 
   @@unique([followerId, followingId])
@@ -258,7 +255,7 @@ model Notification {
   id            String     @id @default(cuid())
   userId        String     @db.Uuid
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          String     // message, follow, reaction, etc
+  type          String
   title         String?
   content       String?
   read          Boolean    @default(false)
