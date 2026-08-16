@@ -11,7 +11,7 @@ generator client {
 // USER MODEL
 // ============================================
 model User {
-  id                      String     @id @default(cuid())
+  id                      String     @id @default(uuid()) @db.Uuid
   email                   String     @unique
   username                String     @unique
   displayName             String?
