@@ -1,5 +1,74 @@
-// ADD THESE TO YOUR prisma/schema.prisma FILE
-// Keep your existing schema and add these new models below
+// This is the COMPLETE schema.prisma
+// Replace your entire prisma/schema.prisma with this
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================
+// USER MODEL
+// ============================================
+model User {
+  id                      String     @id @default(cuid())
+  email                   String     @unique
+  username                String     @unique
+  displayName             String?
+  password                String
+  avatar                  String?
+  bio                     String?
+  online                  Boolean    @default(false)
+  lastSeen                DateTime?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  // Messages & Conversations
+  messages                Message[]
+  conversations           Conversation[] @relation("User1Conversations")
+  conversations2          Conversation[] @relation("User2Conversations")
+
+  // Groups
+  groupMemberships        GroupMember[]
+  createdGroups           Group[]    @relation("GroupCreator")
+
+  // Communities
+  communityMemberships    CommunityMember[]
+  createdCommunities      Community[] @relation("CommunityCreator")
+
+  // Posts & Social
+  posts                   Post[]
+  followers               Follow[]   @relation("FollowingUser")
+  following               Follow[]   @relation("FollowerUser")
+
+  // Reactions & Notifications
+  reactions               Reaction[]
+  notifications           Notification[]
+
+  @@index([email])
+  @@index([username])
+}
+
+// ============================================
+// CONVERSATIONS (1:1 DMs)
+// ============================================
+model Conversation {
+  id            String     @id @default(cuid())
+  user1Id       String     @db.Uuid
+  user1         User       @relation("User1Conversations", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id       String     @db.Uuid
+  user2         User       @relation("User2Conversations", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages      Message[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
 
 // ============================================
 // GROUP CHATS
@@ -94,7 +163,7 @@ model Channel {
 }
 
 // ============================================
-// MESSAGE ENHANCEMENTS
+// MESSAGES (Enhanced)
 // ============================================
 model Message {
   id            String     @id @default(cuid())
@@ -104,6 +173,7 @@ model Message {
   
   // For 1:1 conversations
   conversationId String?    @db.Text
+  conversation  Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
   // For group chats
   groupId       String?    @db.Text
@@ -149,12 +219,51 @@ model Reaction {
 }
 
 // ============================================
-// Update existing User model to add:
+// POSTS (Social Feed)
 // ============================================
-// In your User model, add these fields if not already present:
+model Post {
+  id            String     @id @default(cuid())
+  content       String
+  authorId      String     @db.Uuid
+  author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  communityId   String?    @db.Text
+  community     Community? @relation("CommunityPosts", fields: [communityId], references: [id], onDelete: SetNull)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-// groupMemberships    GroupMember[]       @relation("GroupMemberships")
-// createdGroups       Group[]             @relation("GroupCreator")
-// communityMemberships CommunityMember[]  @relation("CommunityMemberships")
-// createdCommunities  Community[]         @relation("CommunityCreator")
-// reactions           Reaction[]
+  @@index([authorId])
+  @@index([communityId])
+}
+
+// ============================================
+// FOLLOW RELATIONSHIPS
+// ============================================
+model Follow {
+  id            String     @id @default(cuid())
+  followerId    String     @db.Uuid
+  follower      User       @relation("FollowerUser", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId   String     @db.Uuid
+  following     User       @relation("FollowingUser", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+model Notification {
+  id            String     @id @default(cuid())
+  userId        String     @db.Uuid
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String     // message, follow, reaction, etc
+  title         String?
+  content       String?
+  read          Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
